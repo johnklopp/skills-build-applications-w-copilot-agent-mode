@@ -39,12 +39,27 @@ install_mongodb() {
   echo "==> Installed $(mongod --version | head -n1)"
 }
 
+ensure_python_venv() {
+  # The base image ships python3 without the venv/ensurepip module, which the
+  # Django backend needs for its virtual environment.
+  if python3 -c "import ensurepip" >/dev/null 2>&1; then
+    return
+  fi
+  echo "==> Installing python3-venv / python3-pip"
+  local py_minor
+  py_minor="$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
+  sudo apt-get update
+  sudo apt-get install -y "python${py_minor}-venv" python3-pip
+}
+
 setup_backend() {
   local backend_dir="octofit-tracker/backend"
   if [ ! -f "${backend_dir}/requirements.txt" ]; then
     echo "==> Skipping backend setup (no ${backend_dir}/requirements.txt yet)"
     return
   fi
+
+  ensure_python_venv
 
   echo "==> Setting up Django backend virtual environment"
   if [ ! -d "${backend_dir}/venv" ]; then
